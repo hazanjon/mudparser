@@ -14,7 +14,9 @@ twit.stream('filter', {follow: config.bot_user_id}, function(stream) {
 //    setTimeout(stream.destroy, 5000);
 });
 
-var twithandler = {};
+var twithandler = {
+	user_reply_num: 10000000000000
+};
 
 twithandler.incoming = function(data){
 	if(!data || !data.hasOwnProperty('in_reply_to_user_id') || data.in_reply_to_user_id != config.bot_user_id){
@@ -22,4 +24,34 @@ twithandler.incoming = function(data){
 		console.log('Invalid Twitter Data', data);
 		return;
 	}
+	
+	var text = data.text;
+	text = text.replace(/@[0-9a-zA-Z]+/g, "")
+	text = text.trim();
+	
+	console.log(text);
 }
+
+twithandler.reply = function(){
+}
+
+twithandler.replyUniqueNumber = function(){
+	
+	var num = twithandler.user_reply_num.toString(36);
+	//@TODO: Check the handle isnt real
+	twithandler.user_reply_num++;
+	return ' @'+num;
+}
+
+/*
+twit
+    .verifyCredentials(function(data) {
+        console.log(util.inspect(data));
+    })
+    .updateStatus('Test tweet from node-twitter/' + twitter.VERSION,
+        function(data) {
+            console.log(util.inspect(data));
+        }
+    );*/
+
+twithandler.incoming({in_reply_to_user_id: 2700750817, text: "@mudparser hello"});
