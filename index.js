@@ -5,8 +5,6 @@ var util = require('util'),
     
 var http = require('http');
 
-var twit = new twitter(config.twitter);
-
 var helpers = {};
 
 helpers.getByProp = function(myArray, prop, value) {
@@ -24,49 +22,58 @@ helpers.curtisConvertion = function(data){
 	return data;
 }
 
-twit.stream('filter', {follow: config.bot_user_id}, function(stream) {
-    stream.on('data', function(data) {
-        twithandler.incoming(util.inspect(data));
-    });
-    // Disconnect stream after five seconds
-//    setTimeout(stream.destroy, 5000);
-});
-
 var twithandler = {
-	user_reply_num: 10000000000000
+	user_reply_num: 10000000000000,
+	api: new twitter(config.twitter)
 };
 
-twithandler.incoming = function(data){
-	if(!data || !data.hasOwnProperty('in_reply_to_user_id') || data.in_reply_to_user_id != config.bot_user_id){
-		//Catch any responses on the streaming API that arent actually aimed at the bot and discard them
-		console.log('Invalid Twitter Data', data);
+twithandler.incoming = function(tweet){
+	//Catch any responses on the streaming API that arent actually aimed at the bot and discard them
+	if(!tweet){
+		console.log('Invalid Twitter Data - No Data Passed');
 		return;
 	}
 	
-	var text = data.text;
+	var text = tweet.text;
 	text = text.replace(/@[0-9a-zA-Z]+/g, "")
 	text = text.trim();
 	
 	console.log(text);
-	mudparser.parse(text, twithandler.userid(data.user.id), function(response){
+	mudparser.parse(text, twithandler.userid(tweet.user.id), function(response){
 		
-		twithandler.reply(data, response);
+		twithandler.reply(tweet, response);
 		
 	});
 }
 
 twithandler.reply = function(data, response){
-	console.log(data);
-/*
-twit
-    .verifyCredentials(function(data) {
-        console.log(util.inspect(data));
-    })
-    .updateStatus('Test tweet from node-twitter/' + twitter.VERSION,
-        function(data) {
-            console.log(util.inspect(data));
-        }
-    );*/
+	
+	console.log('response:', response);
+	console.log('text:', data.text, data.text.indexOf('@mudparser'));
+	if(response == '' && data.text.indexOf('@mudparser') === 0){
+		var response = "I'm sorry I don't understand what you are trying to do";
+	}
+	
+	//Only response if there a message from the API or the message was addressed directly at the bot
+	if(response != ''){
+		
+		var replytext = '@' + data.user.screen_name + ' ';
+		replytext += twithandler.replyUniqueNumber() + ' ';
+		
+		replytext += response;
+		
+		//@TODO: Handle length errors here
+
+		this.api
+	    .verifyCredentials(function(data) {
+	        //console.log(util.inspect(data));
+	    })
+	    .updateStatus(replytext,
+	        function(data) {
+	            console.log('Reply Sent: ', replytext);//util.inspect(data));
+	        }
+	    );
+	}
 }
 
 twithandler.userid = function(id){
@@ -145,6 +152,7 @@ mudparser.parse = function(text, userid, callback){
 	
 	if(!command){
 		console.log('No command detected', text, parts);
+		callback('');
 		return;
 	}
 	
@@ -192,13 +200,19 @@ mudparser.api = function(command, userid, value, callback){
 	url += '?action=' + value;
 	
 	console.log('API Call', url);
-	var request = http.get(url, callback);
+	//var request = http.get(url, callback);
+	callback('A green and pleasant place - ' + value);
 }
 
-twithandler.incoming({
-	in_reply_to_user_id: 2700750817, 
-	text: "@mudparser move n",
-	user: {
-		id: 63685924
-	}
+// Setup App
+
+
+
+twithandler.api.stream('filter', {follow: config.bot_user_id}, function(stream) {
+    stream.on('data', function(data) {
+        twithandler.incoming(data);
+    });
+    // Disconnect stream after five seconds
+//    setTimeout(stream.destroy, 5000);
 });
+
