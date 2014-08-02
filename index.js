@@ -29,22 +29,28 @@ twithandler.incoming = function(tweet){
 		return;
 	}
 	
-	var text = tweet.text;
-	text = text.replace(/@[0-9a-zA-Z]+/g, "")
-	text = text.trim();
+	if(!tweet.user || tweet.user.id == config.bot.user_id){
+		console.log('Error 59:', tweet);
+		return; //Dont process outgoing messages
+	}
 	
-	console.log(text);
-	mudparser.parse(text, twithandler.userid(tweet.user.id), function(response){
+	if(tweet.text){
+		var text = tweet.text.toLowerCase();
+		text = text.replace(/@[0-9a-z]+/g, "")
+		text = text.trim();
 		
-		twithandler.reply(tweet, response);
-		
-	});
+		mudparser.parse(text, twithandler.userid(tweet.user.id), function(response){
+			
+			twithandler.reply(tweet, response);
+			
+		});
+	}else{
+		console.log('Invalid Twitter Data - No Text', tweet);
+	}
 }
 
 twithandler.reply = function(data, response){
 	
-	console.log('response:', response);
-	console.log('text:', data.text, data.text.indexOf('@'+config.bot.screen_name));
 	if(response == '' && data.text.indexOf('@'+config.bot.screen_name) === 0){
 		var response = "I'm sorry I don't understand what you are trying to do";
 	}
@@ -156,7 +162,7 @@ mudparser.parse = function(text, userid, callback){
 	}
 	
 	var parts = text.split(' ');
-	console.log('a', this.commandSubstitute(parts[0]));
+	
 	parts[0] = this.commandSubstitute(parts[0]);
 	
 	var command = helpers.getByProp(this.validCommands, 'action', parts[0]);
@@ -204,8 +210,26 @@ mudparser.api = function(command, userid, value, callback){
 	url += '?action=' + value;
 	
 	console.log('API Call', url);
-	//var request = http.get(url, callback);
-	callback('A green and pleasant place - ' + value);
+	var request = http.get(url, function(response){
+		var resp = '';
+	    response.on('data', function (chunk) {
+	    	resp += chunk;
+	    });
+	    
+	    response.on('end', function(){
+			console.log('Resp:', resp);
+			resp = JSON.parse(resp);
+			var message = resp.string;
+			callback(message);
+	    });
+	    
+	    response.on('error', function(error){
+			console.log('HTTP Error', error);
+	    });
+	}).on('error', function(error) {
+		console.log('HTTP Error2', error);
+	});
+	//callback('A green and pleasant place - ' + value);
 }
 
 // Setup App
