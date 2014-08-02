@@ -17,11 +17,6 @@ helpers.getByProp = function(myArray, prop, value) {
     })[0]
 }
 
-helpers.curtisConvertion = function(data){
-	//@TODO: add conversion here when Curt decides what translates to what
-	return data;
-}
-
 var twithandler = {
 	user_reply_num: 10000000000000,
 	api: new twitter(config.twitter)
@@ -49,8 +44,8 @@ twithandler.incoming = function(tweet){
 twithandler.reply = function(data, response){
 	
 	console.log('response:', response);
-	console.log('text:', data.text, data.text.indexOf('@mudparser'));
-	if(response == '' && data.text.indexOf('@mudparser') === 0){
+	console.log('text:', data.text, data.text.indexOf('@'+config.bot.screen_name));
+	if(response == '' && data.text.indexOf('@'+config.bot.screen_name) === 0){
 		var response = "I'm sorry I don't understand what you are trying to do";
 	}
 	
@@ -90,52 +85,67 @@ twithandler.replyUniqueNumber = function(){
 
 var mudparser = {};
 
-mudparser.substitutions = [
-	{
-		substition: 'north',
-		alternatives: ['n']
-	},
-	{
-		substition: 'south',
-		alternatives: ['s']
-	},
-	{
-		substition: 'east',
-		alternatives: ['e']
-	},
-	{
-		substition: 'west',
-		alternatives: ['w']
-	}
-];
-
 mudparser.validCommands = [
 	{
+		action: 'north',
+		alternatives: ['n'],
+		hasValue: true,
+		target: 'player/#player#'
+	},
+	{
+		action: 'south',
+		alternatives: ['s'],
+		hasValue: true,
+		target: 'player/#player#'
+	},
+	{
+		action: 'east',
+		alternatives: ['e'],
+		hasValue: true,
+		target: 'player/#player#'
+	},
+	{
+		action: 'west',
+		alternatives: ['w'],
+		hasValue: true,
+		target: 'player/#player#'
+	},
+	{
 		action: 'move',
+		alternatives: ['m'],
 		hasValue: true,
 		target: 'player/#player#'
 	},
 	{
 		action: 'fight',
+		alternatives: ['f'],
 		hasValue: true,
 		target: 'player/#player#'
 	},
 	{
 		action: 'open',
+		alternatives: ['o'],
 		hasValue: true,
 		target: 'player/#player#'
 	},
 	{
 		action: 'help',
-		hasValue: false,
-		target: ''
-	},
-	{
-		action: 'about',
+		alternatives: ['h'],
 		hasValue: false,
 		target: ''
 	}
 ];
+
+mudparser.commandSubstitute = function(command){
+	this.validCommands.forEach(function(com){
+		com.alternatives.forEach(function(alt){
+			if(command == alt)
+				command = com.action;
+		});
+	});
+	
+	return command;
+}
 
 mudparser.parse = function(text, userid, callback){
 	if(typeof callback != "function"){
@@ -146,6 +156,8 @@ mudparser.parse = function(text, userid, callback){
 	}
 	
 	var parts = text.split(' ');
+	console.log('a', this.commandSubstitute(parts[0]));
+	parts[0] = this.commandSubstitute(parts[0]);
 	
 	var command = helpers.getByProp(this.validCommands, 'action', parts[0]);
 	var value = '';
@@ -167,14 +179,7 @@ mudparser.parse = function(text, userid, callback){
 	
 	value = command.action;
 	if(command.action == 'move')
-		value = parts[1];
-	
-	mudparser.substitutions.forEach(function(sub){
-		sub.alternatives.forEach(function(alt){
-			if(value == alt)
-				value = sub.substition;
-		});
-	});
+		value = this.commandSubstitute(parts[1]);
 	
 	mudparser.api(command, userid, value, function(data){
 		callback(data);
@@ -196,7 +201,6 @@ mudparser.api = function(command, userid, value, callback){
 	//@TODO: Currently no support for this in API
 	//url += '?action=' + command.action + '&value=' + value;
 	
-	value = helpers.curtisConvertion(value);
 	url += '?action=' + value;
 	
 	console.log('API Call', url);
@@ -208,7 +212,7 @@ mudparser.api = function(command, userid, value, callback){
 
 
 
-twithandler.api.stream('filter', {follow: config.bot_user_id}, function(stream) {
+twithandler.api.stream('filter', {follow: config.bot.user_id}, function(stream) {
     stream.on('data', function(data) {
         twithandler.incoming(data);
     });
