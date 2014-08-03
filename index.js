@@ -4,6 +4,8 @@ var util = require('util'),
     twitter = require('twitter');
     
 var http = require('http');
+var express = require('express');
+var bodyParser = require('body-parser')
 
 var helpers = {};
 
@@ -17,12 +19,12 @@ helpers.getByProp = function(myArray, prop, value) {
     })[0]
 }
 
-var twithandler = {
-	user_reply_num: 10000000000000,
+var twitterhandler = {
+	user_reply_num: [],
 	api: new twitter(config.twitter)
 };
 
-twithandler.incoming = function(tweet){
+twitterhandler.incoming = function(tweet){
 	//Catch any responses on the streaming API that arent actually aimed at the bot and discard them
 	if(!tweet){
 		console.log('Invalid Twitter Data - No Data Passed');
@@ -39,9 +41,9 @@ twithandler.incoming = function(tweet){
 		text = text.replace(/@[0-9a-z]+/g, "")
 		text = text.trim();
 		
-		mudparser.parse(text, twithandler.userid(tweet.user.id), function(response){
+		mudparser.parse(text, twitterhandler.userid(tweet.user.id), function(response){
 			
-			twithandler.reply(tweet, response);
+			twitterhandler.reply(tweet, response);
 			
 		});
 	}else{
@@ -49,7 +51,7 @@ twithandler.incoming = function(tweet){
 	}
 }
 
-twithandler.reply = function(data, response){
+twitterhandler.reply = function(data, response){
 	
 	if(response == '' && data.text.indexOf('@'+config.bot.screen_name) === 0){
 		var response = "I'm sorry I don't understand what you are trying to do";
@@ -58,8 +60,8 @@ twithandler.reply = function(data, response){
 	//Only response if there a message from the API or the message was addressed directly at the bot
 	if(response != ''){
 		
-		var replytext = '@' + data.user.screen_name + ' ';
-		replytext += twithandler.replyUniqueNumber() + ' ';
+		var replytext = '@' + data.user.screen_name + '';
+		replytext += twitterhandler.replyUniqueNumber(data.user.id) + ' ';
 		
 		replytext += response;
 		
@@ -77,16 +79,56 @@ twithandler.reply = function(data, response){
 	}
 }
 
-twithandler.userid = function(id){
+twitterhandler.userid = function(id){
 	return 'twitter-' + id;
 }
 
-twithandler.replyUniqueNumber = function(){
+twitterhandler.replyUniqueNumber = function(user_id){
 	
-	var num = twithandler.user_reply_num.toString(36);
-	//@TODO: Check the handle isnt real
-	twithandler.user_reply_num++;
-	return ' @'+num;
+	//@TODO: Dont do bad things here
+	if(!twitterhandler.user_reply_num.hasOwnProperty(user_id)){
+		twitterhandler.user_reply_num[user_id] = 0;
+	}
+	
+	var name = config.bot.dup_protection_bots[twitterhandler.user_reply_num[user_id]];
+	
+	twitterhandler.user_reply_num[user_id]++;
+	if(twitterhandler.user_reply_num[user_id] >= config.bot.dup_protection_bots.length)
+		twitterhandler.user_reply_num[user_id] = 0;
+	
+	return ' @'+name;
+}
+
+twiliohandler = {};
+
+twiliohandler.incoming = function(req, res){
+	
+	var message = req.body.Body;
+	var from = req.body.From;
+	console.log('From: ' + from + ', Message: ' + message);
+		
+	if(message){
+		var message = message.toLowerCase();
+		
+		mudparser.parse(message, twiliohandler.userid(from), function(response){
+			
+			twiliohandler.reply(res, response);
+			
+		});
+	}else{
+		console.log('Blank message');
+	}
+}
+
+twiliohandler.reply = function(res, response){
+	// Return sender a very nice message
+	// twiML to be executed when SMS is received
+	var twiml = '<Response><Sms>' + response + '</Sms></Response>';
+	res.send(twiml, {'Content-Type':'text/xml'}, 200);
+}
+
+twiliohandler.userid = function(id){
+	return 'twilio-' + id;
 }
 
 var mudparser = {};
@@ -131,6 +173,12 @@ mudparser.validCommands = [
 	{
 		action: 'open',
 		alternatives: ['o'],
+		hasValue: true,
+		target: 'player/#player#'
+	},
+	{
+		action: 'start',
+		alternatives: ['s', 'join', 'j'],
 		hasValue: true,
 		target: 'player/#player#'
 	},
@@ -210,37 +258,52 @@ mudparser.api = function(command, userid, value, callback){
 	url += '?action=' + value;
 	
 	console.log('API Call', url);
-	var request = http.get(url, function(response){
-		var resp = '';
-	    response.on('data', function (chunk) {
-	    	resp += chunk;
-	    });
+	// var request = http.get(url, function(response){
+	// 	var resp = '';
+	//     response.on('data', function (chunk) {
+	//     	resp += chunk;
+	//     });
 	    
-	    response.on('end', function(){
-			console.log('Resp:', resp);
-			resp = JSON.parse(resp);
-			var message = resp.string;
-			callback(message);
-	    });
+	//     response.on('end', function(){
+	// 		console.log('Resp:', resp);
+	// 		resp = JSON.parse(resp);
+	// 		var message = resp.string;
+	// 		callback(message);
+	//     });
 	    
-	    response.on('error', function(error){
-			console.log('HTTP Error', error);
-	    });
-	}).on('error', function(error) {
-		console.log('HTTP Error2', error);
-	});
-	//callback('A green and pleasant place - ' + value);
+	//     response.on('error', function(error){
+	// 		console.log('HTTP Error', error);
+	//     });
+	// }).on('error', function(error) {
+	// 	console.log('HTTP Error2', error);
+	// });
+	callback("Your in a room. " + value);
 }
 
 // Setup App
 
-
-
-twithandler.api.stream('filter', {follow: config.bot.user_id}, function(stream) {
+twitterhandler.api.stream('filter', {follow: config.bot.user_id}, function(stream) {
     stream.on('data', function(data) {
-        twithandler.incoming(data);
+        twitterhandler.incoming(data);
     });
     // Disconnect stream after five seconds
 //    setTimeout(stream.destroy, 5000);
 });
+
+
+var app = express();
+// parse application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: false }));
+
+// parse application/json
+app.use(bodyParser.json());
+
+app.get('/', function(req, res) {
+    res.send('Hello World');
+});
+
+// Create a route to respond to a call
+app.post('/respondToSMS', twiliohandler.incoming);
+
+app.listen(config.port || 3000);
 
