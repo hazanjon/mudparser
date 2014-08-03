@@ -32,7 +32,7 @@ twitterhandler.incoming = function(tweet){
 	}
 	
 	if(!tweet.user || tweet.user.id == config.bot.user_id){
-		console.log('Error 59:', tweet);
+		console.log('Error 59');
 		return; //Dont process outgoing messages
 	}
 	
@@ -258,26 +258,26 @@ mudparser.api = function(command, userid, value, callback){
 	url += '?action=' + value;
 	
 	console.log('API Call', url);
-	// var request = http.get(url, function(response){
-	// 	var resp = '';
-	//     response.on('data', function (chunk) {
-	//     	resp += chunk;
-	//     });
+	var request = http.get(url, function(response){
+		var resp = '';
+	    response.on('data', function (chunk) {
+	    	resp += chunk;
+	    });
 	    
-	//     response.on('end', function(){
-	// 		console.log('Resp:', resp);
-	// 		resp = JSON.parse(resp);
-	// 		var message = resp.string;
-	// 		callback(message);
-	//     });
+	    response.on('end', function(){
+			console.log('Resp:', resp);
+			resp = JSON.parse(resp);
+			var message = resp.string;
+			callback(message);
+	    });
 	    
-	//     response.on('error', function(error){
-	// 		console.log('HTTP Error', error);
-	//     });
-	// }).on('error', function(error) {
-	// 	console.log('HTTP Error2', error);
-	// });
-	callback("Your in a room. " + value);
+	    response.on('error', function(error){
+			console.log('HTTP Error', error);
+	    });
+	}).on('error', function(error) {
+		console.log('HTTP Error2', error);
+	});
+	//callback("Your in a room. " + value);
 }
 
 // Setup App
