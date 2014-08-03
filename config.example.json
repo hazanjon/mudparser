@@ -1,16 +1,20 @@
 {
-        "twitter": {
-                consumer_key: "STATE YOUR NAME",
-                consumer_secret: "STATE YOUR NAME",
-                access_token_key: "STATE YOUR NAME",
-                access_token_secret: "STATE YOUR NAME"
-        },
-	    "bot": {
-			"user_id": 2700750817,
-			"screen_name": "mudparser"
-		},
-		"game_server": {
-			"url": "http://104.131.212.45/"
-		}
+	"port": 3000,
+    "twitter": {
+            consumer_key: "STATE YOUR NAME",
+            consumer_secret: "STATE YOUR NAME",
+            access_token_key: "STATE YOUR NAME",
+            access_token_secret: "STATE YOUR NAME"
+    },
+    "bot": {
+		"user_id": 000000000,
+		"screen_name": "botname",
+		"dup_protection_bots": [
+		// You need at least 11 real accounts in this list to act as duplicate post protection
+		]
+	},
+	"game_server": {
+		"url": "http://104.131.212.45/"
+	}
 }
 
