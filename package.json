@@ -19,6 +19,7 @@
     "twitter": "~0.2.9",
     "twilio": "~1.6.0",
     "express": "~4.7.2",
-    "body-parser": "~1.5.2"
+    "body-parser": "~1.5.2",
+    "request": "~@2.39.0"
   }
 }

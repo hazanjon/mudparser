@@ -6,6 +6,20 @@ var util = require('util'),
 var http = require('http');
 var express = require('express');
 var bodyParser = require('body-parser')
+var request = require('request');
+
+// twitter.prototype.updateStatusWithMedia = function(text, imageUrl, callback) {	
+// 	var form, r;
+	
+// 	var url = this.options.rest_base + '/statuses/update_with_media.json';
+// 	console.log(url);
+// 	r = request.post(url, {
+// 		oauth: config.twitter
+// 	}, callback);
+// 	form = r.form();
+// 	form.append('status', text);
+// 	return form.append('media[]', request(imageUrl));
+// }
 
 var helpers = {};
 
@@ -24,6 +38,8 @@ var twitterhandler = {
 	api: new twitter(config.twitter)
 };
 
+//twitterhandler.api.updateStatusWithMedia('@hazanjon test', 'http://placekitty.artisan.io/200/300', function(err, res){console.log(err, res);});
+
 twitterhandler.incoming = function(tweet){
 	//Catch any responses on the streaming API that arent actually aimed at the bot and discard them
 	if(!tweet){
@@ -41,7 +57,7 @@ twitterhandler.incoming = function(tweet){
 		text = text.replace(/@[0-9a-z]+/g, "")
 		text = text.trim();
 		
-		mudparser.parse(text, twitterhandler.userid(tweet.user.id), function(response){
+		mudparser.parse(text, twitterhandler.userid(tweet.user.screen_name), function(response){
 			
 			twitterhandler.reply(tweet, response);
 			
@@ -178,7 +194,7 @@ mudparser.validCommands = [
 	},
 	{
 		action: 'start',
-		alternatives: ['s', 'join', 'j'],
+		alternatives: ['s', 'join', 'j', 'create', 'c'],
 		hasValue: true,
 		target: 'player/#player#'
 	},
@@ -235,6 +251,11 @@ mudparser.parse = function(text, userid, callback){
 	if(command.action == 'move')
 		value = this.commandSubstitute(parts[1]);
 	
+	if(command.action == 'help'){
+		callback('Commands: Start (s), North (n), South (s), East (e), West (w), Fight (f), Open (o), Help (h)');
+		return;
+	}
+	
 	mudparser.api(command, userid, value, function(data){
 		callback(data);
 	});
@@ -284,6 +305,7 @@ mudparser.api = function(command, userid, value, callback){
 
 twitterhandler.api.stream('filter', {follow: config.bot.user_id}, function(stream) {
     stream.on('data', function(data) {
+    	console.log('tweet arrived');
         twitterhandler.incoming(data);
     });
     // Disconnect stream after five seconds
@@ -306,4 +328,3 @@ app.get('/', function(req, res) {
 app.post('/respondToSMS', twiliohandler.incoming);
 
 app.listen(config.port || 3000);
-
